@@ -1,7 +1,8 @@
 import vue from 'rollup-plugin-vue';
-import postcss from 'rollup-plugin-postcss';
 import babel from 'rollup-plugin-babel';
 import {terser} from 'rollup-plugin-terser';
+import { nodeResolve } from '@rollup/plugin-node-resolve';
+import postcss from 'rollup-plugin-postcss'
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -13,10 +14,13 @@ export default {
     name: 'VuePopper',
   },
   plugins: [
-    postcss({ extract: true }),
+    nodeResolve(),
     vue({
       template: {},
       css: false,
+    }),
+    postcss({
+      extract: true,
     }),
     babel({
       runtimeHelpers: true,

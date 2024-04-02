@@ -232,8 +232,8 @@
     },
 
     mounted() {
-      this.referenceElm = this.reference || this.$slots.reference[0].elm;
-      this.popper = this.$slots.default[0].elm;
+      this.referenceElm = this.reference || this.$el.children[1]
+      this.popper = this.$el.children[0].children[0]
 
       switch (this.trigger) {
         case 'clickToOpen':

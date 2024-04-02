@@ -8,7 +8,7 @@
   <title>VueJS popper component</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.4.1/css/bulma.min.css">
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
-  <link rel="stylesheet" href="../dist/css/vue-popper.css">
+  <link rel="stylesheet" href="../dist/vue-popper.css">
 </head>
 <body>
 
@@ -122,9 +122,11 @@
           <span class="popper-content">Popper Content</span>
         </div>
 
-        <a class="button is-primary" slot="reference">
-          Left
-        </a>
+        <template #reference>
+          <a class="button is-primary">
+            Left
+          </a>
+        </template>
       </popper>
     </div>
   </div>
@@ -173,9 +175,11 @@
           <span class="popper-content">Popper Content</span>
         </div>
 
-        <a class="button is-primary" slot="reference">
-          Right
-        </a>
+        <template #reference>
+          <a class="button is-primary">
+            Right
+          </a>
+        </template>
       </popper>
     </div>
   </div>
@@ -224,9 +228,11 @@
           <span class="popper-content">Popper Content</span>
         </div>
 
-        <a class="button is-primary" slot="reference">
-          Top
-        </a>
+        <template #reference>
+          <a class="button is-primary">
+            Top
+          </a>
+        </template>
       </popper>
     </div>
   </div>
@@ -275,24 +281,34 @@
           <span class="popper-content">Popper Content</span>
         </div>
 
-        <a class="button is-primary" slot="reference">
-          Bottom
-        </a>
+        <template #reference>
+          <a class="button is-primary">
+            Bottom
+          </a>
+        </template>
       </popper>
     </div>
   </div>
 </div>
 
-<script type="text/javascript" src="https://unpkg.com/vue"></script>
+<script type="text/javascript" src="https://unpkg.com/vue@3.4.21/dist/vue.global.js"></script>
+<script>
+  window.vue = Vue
+</script>
 <script type="text/javascript" src="../node_modules/popper.js/dist/umd/popper.js"></script>
-<script type="text/javascript" src="../dist/js/vue-popper.js"></script>
+<script type="text/javascript" src="../dist/vue-popper.js"></script>
 <script type="text/javascript">
-  new Vue({
-    el: '#app',
+  const {createApp} = Vue
+
+  window.vue = Vue
+  console.log(Vue.version)
+
+  createApp({
     components: {
       'popper': VuePopper
     }
-  });
+  }).mount("#app");
+
 </script>
 
 </body>
