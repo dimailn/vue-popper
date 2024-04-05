@@ -1,5 +1,5 @@
 {
-  "name": "vue-popperjs",
+  "name": "@dimailn/vue-popper",
   "version": "2.3.0",
   "description": "VueJS popover",
   "main": "dist/vue-popper.min.js",
