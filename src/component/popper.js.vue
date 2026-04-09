@@ -234,17 +234,15 @@
     },
 
     mounted() {
-      this.popper = this.$refs.popper;
       this.referenceElm = this.reference || (this.$el && this.$el.children[1]) || null;
+      this.syncPopperTarget();
 
       if (!this.referenceElm || !this.popper) {
         return;
       }
 
-      // Сохраняем ссылку на контейнер синхронно, чтобы beforeUnmount
-      // мог удалить его из body даже если createPopper ещё не отработал.
       if (this.appendToBody) {
-        this.popperContainer = this.popper.parentElement;
+        this.popperContainer = this.$refs.popper || this.popper.parentElement;
       }
 
       switch (this.trigger) {
@@ -253,7 +251,7 @@
           on(document, 'click', this.handleDocumentClick);
           on(document, 'touchstart', this.handleDocumentClick);
           break;
-        case 'click': // Same as clickToToggle, provided for backwards compatibility.
+        case 'click':
         case 'clickToToggle':
           on(this.referenceElm, 'click', this.doToggle);
           on(document, 'click', this.handleDocumentClick);
@@ -275,6 +273,15 @@
     },
 
     methods: {
+      syncPopperTarget() {
+        const outer = this.$refs.popper;
+        if (!outer) {
+          this.popper = null;
+          return;
+        }
+        this.popper = outer.firstElementChild || null;
+      },
+
       doToggle(event) {
         if (this.stopPropagation) {
           event.stopPropagation();
@@ -327,6 +334,7 @@
         }
 
         this.$nextTick(() => {
+          this.syncPopperTarget();
           if (!this.showPopper || this.isUnmounting || !this.referenceElm || !this.popper) {
             return;
           }
@@ -338,9 +346,11 @@
           if (this.appendToBody && !this.appendedToBody) {
             this.appendedToBody = true;
             if (!this.popperContainer) {
-              this.popperContainer = this.popper.parentElement;
+              this.popperContainer = this.$refs.popper || this.popper.parentElement;
             }
-            document.body.appendChild(this.popperContainer);
+            if (this.popperContainer && this.popperContainer.parentNode !== document.body) {
+              document.body.appendChild(this.popperContainer);
+            }
           }
 
           if (this.popperJS && this.popperJS.destroy) {
@@ -452,8 +462,6 @@
       this.isUnmounting = true;
       this.showPopper = false;
       this.destroyPopper();
-      // Синхронно убираем контейнер из body — до того как новый компонент
-      // успеет добавить свой (unmounted приходит позже через queuePostRenderEffect).
       this._removeFromBody();
     },
 

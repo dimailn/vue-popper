@@ -1,15 +1,32 @@
 import { defineComponent, h, nextTick } from 'vue';
 import { mount } from '@vue/test-utils';
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import VuePopper from '../src/index';
 
+function directBodyChildrenWithPopperClass() {
+  return Array.from(document.body.children).filter((el) => el.classList.contains('popper'));
+}
+
+/** Порталы appendToBody — прямые дети body с классом из rootClass (в тестах задан `popper`). */
 function cleanupPopperNodes() {
-  document.body.querySelectorAll('.popper').forEach((node) => {
-    const container = node.parentElement;
-    if (container && container.parentNode === document.body) {
-      document.body.removeChild(container);
-    }
+  directBodyChildrenWithPopperClass().forEach((node) => {
+    document.body.removeChild(node);
   });
+}
+
+function injectStaticRootClassStyle() {
+  const id = 'popper-root-class-static-test-style';
+  if (document.getElementById(id)) {
+    return;
+  }
+  const el = document.createElement('style');
+  el.id = id;
+  el.textContent = '.popper-root-static-override { position: static !important; }';
+  document.head.appendChild(el);
+}
+
+function removeStaticRootClassStyle() {
+  document.getElementById('popper-root-class-static-test-style')?.remove();
 }
 
 describe('Vue 3 remount cleanup', () => {
@@ -51,8 +68,7 @@ describe('Vue 3 remount cleanup', () => {
     await nextTick();
     await nextTick();
 
-    const poppers = document.body.querySelectorAll('.popper');
-    expect(poppers.length).toBe(1);
+    expect(directBodyChildrenWithPopperClass().length).toBe(1);
 
     wrapper.unmount();
   });
@@ -81,7 +97,7 @@ describe('Vue 3 remount cleanup', () => {
     await nextTick();
     await nextTick();
 
-    expect(document.body.querySelectorAll('.popper').length).toBe(1);
+    expect(directBodyChildrenWithPopperClass().length).toBe(1);
     wrapper.unmount();
   });
 
@@ -119,8 +135,7 @@ describe('Vue 3 remount cleanup', () => {
     await nextTick();
     await nextTick();
 
-    const poppers = document.body.querySelectorAll('.popper');
-    expect(poppers.length).toBe(1);
+    expect(directBodyChildrenWithPopperClass().length).toBe(1);
 
     wrapper.unmount();
   });
@@ -149,12 +164,12 @@ describe('Vue 3 remount cleanup', () => {
     await nextTick();
     await nextTick();
 
-    expect(document.body.querySelectorAll('.popper').length).toBe(1);
+    expect(directBodyChildrenWithPopperClass().length).toBe(1);
 
     wrapper.unmount();
     await nextTick();
 
-    expect(document.body.querySelectorAll('.popper').length).toBe(0);
+    expect(directBodyChildrenWithPopperClass().length).toBe(0);
   });
 
   it('не оставляет дубликаты при множественных key-remount (ui-tour сценарий)', async () => {
@@ -192,9 +207,64 @@ describe('Vue 3 remount cleanup', () => {
       await nextTick();
       await nextTick();
 
-      const poppers = document.body.querySelectorAll('.popper');
-      expect(poppers.length).toBe(1);
+      expect(directBodyChildrenWithPopperClass().length).toBe(1);
     }
+
+    wrapper.unmount();
+  });
+});
+
+describe('rootClass и цель Popper.js', () => {
+  beforeEach(() => {
+    injectStaticRootClassStyle();
+  });
+
+  afterEach(() => {
+    removeStaticRootClassStyle();
+    cleanupPopperNodes();
+  });
+
+  it('Popper.js позиционирует vm.popper (первый узел слота); rootClass на обёртке может быть static', async () => {
+    const Host = defineComponent({
+      render() {
+        return h(
+          VuePopper,
+          {
+            forceShow: true,
+            appendToBody: true,
+            trigger: 'click',
+            visibleArrow: true,
+            rootClass: 'popper-root-static-override popper'
+          },
+          {
+            reference: () => h('button', { class: 'target' }, 'target'),
+            default: () => h('span', { class: 'content' }, 'content')
+          }
+        );
+      }
+    });
+
+    const wrapper = mount(Host, { attachTo: document.body });
+
+    await nextTick();
+    await nextTick();
+
+    const popperVm = wrapper.findComponent(VuePopper).vm;
+    // ref="popper" в шаблоне — обёртка; в Popper передаётся первый элементный ребёнок слота (см. syncPopperTarget / mounted).
+    const positionedEl = popperVm.popper;
+    const rootWrapper = positionedEl?.parentElement;
+
+    expect(positionedEl).toBeTruthy();
+    expect(rootWrapper).toBeTruthy();
+    expect(rootWrapper.classList.contains('popper-root-static-override')).toBe(true);
+
+    expect(getComputedStyle(rootWrapper).position).toBe('static');
+
+    expect(positionedEl.style.position).toBe('absolute');
+
+    const arrow = positionedEl.querySelector('.popper__arrow');
+    expect(arrow).toBeTruthy();
+    expect(positionedEl.contains(arrow)).toBe(true);
 
     wrapper.unmount();
   });

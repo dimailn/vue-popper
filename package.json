@@ -15,6 +15,7 @@
     "test:watch": "vitest",
     "lint": "eslint ./",
     "build": "rollup -c ./build/rollup.config.js && NODE_ENV=production rollup -c ./build/rollup.config.js",
+    "sandbox": "vite --config vite.sandbox.config.js",
     "postinstall": "opencollective-postinstall || true"
   },
   "repository": {
