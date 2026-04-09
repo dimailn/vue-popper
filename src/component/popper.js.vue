@@ -97,13 +97,13 @@
 
   function on(element, event, handler) {
     if (element && event && handler) {
-      document.addEventListener ? element.addEventListener(event, handler, false) : element.attachEvent('on' + event, handler);
+      element.addEventListener(event, handler, false);
     }
   }
 
   function off(element, event, handler) {
     if (element && event) {
-      document.removeEventListener ? element.removeEventListener(event, handler, false) : element.detachEvent('on' + event, handler)
+      element.removeEventListener(event, handler, false);
     }
   }
 
@@ -118,7 +118,7 @@
         default: 'hover',
         validator: value => [
           'clickToOpen',
-          'click', // Same as clickToToggle, provided for backwards compatibility.
+          'click',
           'clickToToggle',
           'hover',
           'focus'
@@ -228,12 +228,24 @@
     created() {
       this.appendedArrow = false;
       this.appendedToBody = false;
+      this.popperContainer = null;
+      this.isUnmounting = false;
       this.popperOptions = Object.assign(this.popperOptions, this.options);
     },
 
     mounted() {
-      this.referenceElm = this.reference || this.$el.children[1]
-      this.popper = this.$el.children[0].children[0]
+      this.popper = this.$refs.popper;
+      this.referenceElm = this.reference || (this.$el && this.$el.children[1]) || null;
+
+      if (!this.referenceElm || !this.popper) {
+        return;
+      }
+
+      // Сохраняем ссылку на контейнер синхронно, чтобы beforeUnmount
+      // мог удалить его из body даже если createPopper ещё не отработал.
+      if (this.appendToBody) {
+        this.popperContainer = this.popper.parentElement;
+      }
 
       switch (this.trigger) {
         case 'clickToOpen':
@@ -264,11 +276,11 @@
 
     methods: {
       doToggle(event) {
-        if(this.stopPropagation) {
+        if (this.stopPropagation) {
           event.stopPropagation();
         }
 
-        if(this.preventDefault) {
+        if (this.preventDefault) {
           event.preventDefault();
         }
 
@@ -295,21 +307,40 @@
           this.popperJS = null;
         }
 
-        if (this.appendedToBody) {
-          this.appendedToBody = false;
-          document.body.removeChild(this.popper.parentElement);
+        this._removeFromBody();
+      },
+
+      _removeFromBody() {
+        const container = this.popperContainer;
+
+        if (container && container.parentNode === document.body) {
+          document.body.removeChild(container);
         }
+
+        this.appendedToBody = false;
+        this.popperContainer = null;
       },
 
       createPopper() {
+        if (!this.showPopper || this.isUnmounting) {
+          return;
+        }
+
         this.$nextTick(() => {
+          if (!this.showPopper || this.isUnmounting || !this.referenceElm || !this.popper) {
+            return;
+          }
+
           if (this.visibleArrow) {
             this.appendArrow(this.popper);
           }
 
           if (this.appendToBody && !this.appendedToBody) {
             this.appendedToBody = true;
-            document.body.appendChild(this.popper.parentElement);
+            if (!this.popperContainer) {
+              this.popperContainer = this.popper.parentElement;
+            }
+            document.body.appendChild(this.popperContainer);
           }
 
           if (this.popperJS && this.popperJS.destroy) {
@@ -336,6 +367,8 @@
       },
 
       destroyPopper() {
+        clearTimeout(this._timer);
+
         off(this.referenceElm, 'click', this.doToggle);
         off(this.referenceElm, 'mouseup', this.doClose);
         off(this.referenceElm, 'mousedown', this.doShow);
@@ -343,14 +376,19 @@
         off(this.referenceElm, 'blur', this.doClose);
         off(this.referenceElm, 'mouseout', this.onMouseOut);
         off(this.referenceElm, 'mouseover', this.onMouseOver);
+        off(this.popper, 'mouseout', this.onMouseOut);
+        off(this.popper, 'mouseover', this.onMouseOver);
+        off(this.popper, 'focus', this.onMouseOver);
+        off(this.popper, 'blur', this.onMouseOut);
         off(document, 'click', this.handleDocumentClick);
+        off(document, 'touchstart', this.handleDocumentClick);
 
         this.showPopper = false;
         this.doDestroy();
       },
 
       appendArrow(element) {
-        if (this.appendedArrow) {
+        if (this.appendedArrow || !element) {
           return;
         }
 
@@ -363,6 +401,9 @@
       },
 
       updatePopper() {
+        if (!this.showPopper || this.isUnmounting) {
+          return;
+        }
         this.popperJS ? this.popperJS.scheduleUpdate() : this.createPopper();
       },
 
@@ -407,8 +448,17 @@
       }
     },
 
-    destroyed() {
+    beforeUnmount() {
+      this.isUnmounting = true;
+      this.showPopper = false;
       this.destroyPopper();
+      // Синхронно убираем контейнер из body — до того как новый компонент
+      // успеет добавить свой (unmounted приходит позже через queuePostRenderEffect).
+      this._removeFromBody();
+    },
+
+    unmounted() {
+      this.doDestroy();
     }
   }
 </script>
